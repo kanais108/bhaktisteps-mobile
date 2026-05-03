@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'events_provider.dart';
+import 'widgets/event_poster.dart';
 
 class EventDetailScreen extends ConsumerWidget {
   final String eventId;
@@ -64,26 +65,41 @@ class EventDetailScreen extends ConsumerWidget {
                   background:
                       event.posterImageUrl != null &&
                           event.posterImageUrl!.trim().isNotEmpty
-                      ? Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.network(
-                              event.posterImageUrl!,
-                              fit: BoxFit.cover,
-                            ),
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.black.withValues(alpha: 0.12),
-                                    Colors.black.withValues(alpha: 0.65),
-                                  ],
+                      ? GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => _FullScreenPoster(
+                                  imageUrl: event.posterImageUrl!,
                                 ),
                               ),
-                            ),
-                          ],
+                            );
+                          },
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Hero(
+                                tag: event.posterImageUrl!,
+                                child: Image.network(
+                                  event.posterImageUrl!,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      Colors.black.withValues(alpha: 0.12),
+                                      Colors.black.withValues(alpha: 0.65),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         )
                       : Container(
                           decoration: const BoxDecoration(
@@ -395,6 +411,59 @@ class _ErrorState extends StatelessWidget {
           child: Text(
             'Could not load event.\n$error',
             textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FullScreenPoster extends StatelessWidget {
+  final String imageUrl;
+
+  const _FullScreenPoster({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: Hero(
+          tag: imageUrl,
+          child: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4,
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              loadingBuilder: (context, child, progress) {
+                if (progress == null) return child;
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.broken_image,
+                      color: Colors.white,
+                      size: 60,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Image failed to load',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),

@@ -17,18 +17,11 @@ class NotificationService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  /// -------------------------------
-  /// INIT + REGISTER TOKEN
-  /// -------------------------------
   Future<void> initializeAndRegisterToken() async {
     try {
       if (kIsWeb) return;
 
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      await _messaging.requestPermission(alert: true, badge: true, sound: true);
 
       await _messaging.setForegroundNotificationPresentationOptions(
         alert: true,
@@ -36,18 +29,15 @@ class NotificationService {
         sound: true,
       );
 
-      /// iOS APNS handling
       if (Platform.isIOS) {
         String? apnsToken;
 
         for (int i = 0; i < 10; i++) {
           apnsToken = await _messaging.getAPNSToken();
-
           if (apnsToken != null && apnsToken.isNotEmpty) {
             debugPrint('APNS TOKEN PRESENT -> true');
             break;
           }
-
           await Future.delayed(const Duration(seconds: 1));
         }
 
@@ -73,7 +63,6 @@ class NotificationService {
 
       debugPrint('FCM TOKEN REGISTERED -> true');
 
-      /// Token refresh
       _messaging.onTokenRefresh.listen((newToken) async {
         try {
           if (newToken.isEmpty) return;
@@ -96,15 +85,12 @@ class NotificationService {
     }
   }
 
-  /// -------------------------------
-  /// FOREGROUND (app open)
-  /// -------------------------------
   void listenToNotifications(BuildContext context) {
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final title = message.notification?.title ?? '';
       final body = message.notification?.body ?? '';
 
-      debugPrint('PUSH RECEIVED (foreground) -> $title');
+      debugPrint('PUSH RECEIVED foreground -> $title');
 
       if (!context.mounted) return;
 
@@ -117,31 +103,22 @@ class NotificationService {
     });
   }
 
-  /// -------------------------------
-  /// BACKGROUND → TAP
-  /// -------------------------------
   void handleNotificationTap({required AppUser user}) {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('PUSH TAP (background)');
+      debugPrint('PUSH TAP background');
       _handleNavigation(message, user);
     });
   }
 
-  /// -------------------------------
-  /// TERMINATED → OPEN
-  /// -------------------------------
   Future<void> handleInitialNotification({required AppUser user}) async {
     final message = await _messaging.getInitialMessage();
 
     if (message != null) {
-      debugPrint('PUSH TAP (terminated)');
+      debugPrint('PUSH TAP terminated');
       _handleNavigation(message, user);
     }
   }
 
-  /// -------------------------------
-  /// NAVIGATION LOGIC
-  /// -------------------------------
   void _handleNavigation(RemoteMessage message, AppUser user) {
     final navigator = appNavigatorKey.currentState;
     if (navigator == null) return;
@@ -152,16 +129,28 @@ class NotificationService {
     debugPrint('Notification type -> $type');
     debugPrint('Event ID -> $eventId');
 
-    /// ✅ First handle event deep link
     if (type == 'events' && eventId != null && eventId.isNotEmpty) {
       navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => EventDetailScreen(eventId: eventId)),
+        MaterialPageRoute(
+          builder: (_) => MainScreen(user: user, initialTab: AppTab.events),
+        ),
         (route) => false,
       );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final nav = appNavigatorKey.currentState;
+        if (nav == null) return;
+
+        nav.push(
+          MaterialPageRoute(
+            builder: (_) => EventDetailScreen(eventId: eventId),
+          ),
+        );
+      });
+
       return;
     }
 
-    /// fallback → open tab
     navigator.pushAndRemoveUntil(
       MaterialPageRoute(
         builder: (_) => MainScreen(user: user, initialTab: _tabFromType(type)),
@@ -170,9 +159,6 @@ class NotificationService {
     );
   }
 
-  /// -------------------------------
-  /// TYPE → TAB MAPPING
-  /// -------------------------------
   AppTab _tabFromType(String? type) {
     switch (type) {
       case 'attendance':
