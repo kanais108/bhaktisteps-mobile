@@ -9,13 +9,25 @@ final sadhanaTodayServiceProvider = Provider<SadhanaService>((ref) {
   return SadhanaService(api);
 });
 
-final sadhanaTodayProvider = FutureProvider<bool>((ref) async {
+String _todayIsoDate() {
+  return DateTime.now().toIso8601String().split('T').first;
+}
+
+final sadhanaTodayEntryProvider = FutureProvider<Map<String, dynamic>?>((
+  ref,
+) async {
   final user = ref.watch(selectedUserProvider);
 
   if (user == null) {
-    return false;
+    return null;
   }
 
   final service = ref.read(sadhanaTodayServiceProvider);
-  return service.isSadhanaDoneToday(user.id);
+
+  return service.getTodaySadhanaEntry(user.id, entryDate: _todayIsoDate());
+});
+
+final sadhanaTodayProvider = FutureProvider<bool>((ref) async {
+  final entry = await ref.watch(sadhanaTodayEntryProvider.future);
+  return entry != null;
 });

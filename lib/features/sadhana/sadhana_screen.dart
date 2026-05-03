@@ -30,6 +30,9 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
   bool bhagavatamClass = false;
   bool isSubmitting = false;
 
+  String? todayEntryId;
+  String? hydratedEntryId;
+
   static const Color background = Color(0xFFF8FAFC);
   static const Color white = Colors.white;
   static const Color primary = Color(0xFF2F6FED);
@@ -45,10 +48,7 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
   @override
   void initState() {
     super.initState();
-    entryDateController.text = DateTime.now()
-        .toIso8601String()
-        .split('T')
-        .first;
+    entryDateController.text = _todayIsoDate();
   }
 
   @override
@@ -61,11 +61,78 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
     super.dispose();
   }
 
+  String _todayIsoDate() {
+    return DateTime.now().toIso8601String().split('T').first;
+  }
+
+  int _asInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  bool _asBool(dynamic value) => value == true;
+
+  String _entryDateOnly(dynamic value) {
+    final raw = value?.toString() ?? '';
+    if (raw.isEmpty) return _todayIsoDate();
+
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw.split('T').first;
+
+    return parsed.toLocal().toIso8601String().split('T').first;
+  }
+
+  void _hydrateTodayEntry(Map<String, dynamic> entry) {
+    final id = entry['id']?.toString();
+
+    if (id == null || id.isEmpty || hydratedEntryId == id) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || hydratedEntryId == id) return;
+
+      setState(() {
+        todayEntryId = id;
+        hydratedEntryId = id;
+
+        entryDateController.text = _entryDateOnly(entry['entryDate']);
+        japaRoundsController.text = _asInt(
+          entry['japaRounds'],
+          fallback: 16,
+        ).toString();
+        readingMinutesController.text = _asInt(
+          entry['readingMinutes'],
+        ).toString();
+        serviceMinutesController.text = _asInt(
+          entry['serviceMinutes'],
+        ).toString();
+        notesController.text = entry['notes']?.toString() ?? '';
+
+        mangalaArati = _asBool(entry['mangalaArati']);
+        tulasiPuja = _asBool(entry['tulasiPuja']);
+        guruPuja = _asBool(entry['guruPuja']);
+        bhagavatamClass = _asBool(entry['bhagavatamClass']);
+      });
+    });
+  }
+
+  void _prepareForNewEntry() {
+    if (hydratedEntryId == '__empty__') return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || hydratedEntryId == '__empty__') return;
+
+      setState(() {
+        todayEntryId = null;
+        hydratedEntryId = '__empty__';
+      });
+    });
+  }
+
   void _resetForm() {
-    entryDateController.text = DateTime.now()
-        .toIso8601String()
-        .split('T')
-        .first;
+    entryDateController.text = _todayIsoDate();
     japaRoundsController.text = '16';
     readingMinutesController.text = '0';
     serviceMinutesController.text = '0';
@@ -75,16 +142,21 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
     tulasiPuja = false;
     guruPuja = false;
     bhagavatamClass = false;
+    todayEntryId = null;
+    hydratedEntryId = '__empty__';
   }
 
   Future<void> _refreshData() async {
+    ref.invalidate(sadhanaTodayEntryProvider);
     ref.invalidate(sadhanaTodayProvider);
     ref.invalidate(dashboardProvider);
     ref.invalidate(sadhanaHistoryProvider);
     ref.invalidate(sadhanaStreakProvider);
 
+    hydratedEntryId = null;
+
     try {
-      await ref.read(sadhanaTodayProvider.future);
+      await ref.read(sadhanaTodayEntryProvider.future);
     } catch (_) {}
 
     try {
@@ -111,6 +183,23 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
     }
   }
 
+  Map<String, dynamic> _payload(String userId) {
+    return {
+      'userId': userId,
+      'entryDate': entryDateController.text.trim(),
+      'japaRounds': int.tryParse(japaRoundsController.text.trim()) ?? 0,
+      'mangalaArati': mangalaArati,
+      'tulasiPuja': tulasiPuja,
+      'guruPuja': guruPuja,
+      'bhagavatamClass': bhagavatamClass,
+      'readingMinutes': int.tryParse(readingMinutesController.text.trim()) ?? 0,
+      'serviceMinutes': int.tryParse(serviceMinutesController.text.trim()) ?? 0,
+      'notes': notesController.text.trim().isEmpty
+          ? null
+          : notesController.text.trim(),
+    };
+  }
+
   Future<void> submitForm() async {
     FocusScope.of(context).unfocus();
 
@@ -126,44 +215,73 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
       isSubmitting = true;
     });
 
+    final wasUpdating = todayEntryId != null && todayEntryId!.isNotEmpty;
+
     try {
       final service = ref.read(sadhanaServiceProvider);
+      final data = _payload(selectedUser.id);
 
-      await service.createSadhana({
-        'userId': selectedUser.id,
-        'entryDate': entryDateController.text.trim(),
-        'japaRounds': int.tryParse(japaRoundsController.text.trim()) ?? 0,
-        'mangalaArati': mangalaArati,
-        'tulasiPuja': tulasiPuja,
-        'guruPuja': guruPuja,
-        'bhagavatamClass': bhagavatamClass,
-        'readingMinutes':
-            int.tryParse(readingMinutesController.text.trim()) ?? 0,
-        'serviceMinutes':
-            int.tryParse(serviceMinutesController.text.trim()) ?? 0,
-        'notes': notesController.text.trim().isEmpty
-            ? null
-            : notesController.text.trim(),
-      });
+      Map<String, dynamic> saved;
 
+      if (wasUpdating) {
+        saved = await service.updateSadhana(todayEntryId!, data);
+      } else {
+        saved = await service.createSadhana(data);
+      }
+
+      final savedId = saved['id']?.toString();
+
+      ref.invalidate(sadhanaTodayEntryProvider);
       ref.invalidate(sadhanaTodayProvider);
       ref.invalidate(dashboardProvider);
       ref.invalidate(sadhanaHistoryProvider);
       ref.invalidate(sadhanaStreakProvider);
 
+      Map<String, dynamic>? refreshedEntry;
+
+      try {
+        refreshedEntry = await ref.read(sadhanaTodayEntryProvider.future);
+      } catch (_) {
+        refreshedEntry = null;
+      }
+
       if (!mounted) return;
 
+      final effectiveEntry = refreshedEntry ?? saved;
+      final effectiveId = effectiveEntry['id']?.toString() ?? savedId;
+
       setState(() {
-        _resetForm();
+        if (effectiveId != null && effectiveId.isNotEmpty) {
+          todayEntryId = effectiveId;
+          hydratedEntryId = effectiveId;
+        }
+
+        entryDateController.text = _entryDateOnly(effectiveEntry['entryDate']);
+        japaRoundsController.text = _asInt(
+          effectiveEntry['japaRounds'],
+          fallback: 16,
+        ).toString();
+        readingMinutesController.text = _asInt(
+          effectiveEntry['readingMinutes'],
+        ).toString();
+        serviceMinutesController.text = _asInt(
+          effectiveEntry['serviceMinutes'],
+        ).toString();
+        notesController.text = effectiveEntry['notes']?.toString() ?? '';
+
+        mangalaArati = _asBool(effectiveEntry['mangalaArati']);
+        tulasiPuja = _asBool(effectiveEntry['tulasiPuja']);
+        guruPuja = _asBool(effectiveEntry['guruPuja']);
+        bhagavatamClass = _asBool(effectiveEntry['bhagavatamClass']);
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sadhana submitted successfully')),
-      );
+      await _showSadhanaSuccessDialog(context, isUpdate: wasUpdating);
     } on DioException catch (e) {
       if (!mounted) return;
 
-      String message = 'Failed to submit sadhana';
+      String message = wasUpdating
+          ? 'Failed to update sadhana'
+          : 'Failed to submit sadhana';
 
       if (e.response?.statusCode == 409) {
         message = 'Sadhana already submitted for this user and date';
@@ -190,6 +308,112 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
         });
       }
     }
+  }
+
+  Future<void> _showSadhanaSuccessDialog(
+    BuildContext context, {
+    required bool isUpdate,
+  }) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 26, 24, 18),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFFF7ED), Color(0xFFE8F7EC)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  isUpdate
+                      ? Icons.edit_note_rounded
+                      : Icons.self_improvement_rounded,
+                  color: isUpdate ? green : primary,
+                  size: 38,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                isUpdate ? 'Sadhana Updated' : 'Sadhana Offered',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: textDark,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isUpdate
+                    ? 'Hare Krishna! Your daily sadhana entry has been updated. May your steady practice continue to nourish your devotion.'
+                    : 'Hare Krishna! Your daily sadhana has been recorded. Every sincere effort is a beautiful offering in devotional service.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: textMuted,
+                  fontSize: 14,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: primarySoft,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Text(
+                  'Keep going — small daily steps build lifelong spiritual strength.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   InputDecoration _inputDecoration({
@@ -354,9 +578,10 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
 
   String _statusMessage(bool done, int streak) {
     if (done) {
-      if (streak >= 7)
-        return 'Wonderful consistency! Keep your devotional streak glowing.';
-      return 'Today is complete. Stay steady and joyful in your practice.';
+      if (streak >= 7) {
+        return 'Wonderful consistency! You can update today’s entry anytime.';
+      }
+      return 'Today is complete. You can still update your offering if needed.';
     }
 
     if (streak >= 7) {
@@ -369,18 +594,31 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
   @override
   Widget build(BuildContext context) {
     final selectedUser = ref.watch(selectedUserProvider);
-    final todayAsync = ref.watch(sadhanaTodayProvider);
+    final todayEntryAsync = ref.watch(sadhanaTodayEntryProvider);
     final streakAsync = ref.watch(sadhanaStreakProvider);
 
-    final todayDone = todayAsync.maybeWhen(
-      data: (done) => done,
-      orElse: () => false,
+    final todayEntry = todayEntryAsync.maybeWhen(
+      data: (entry) => entry,
+      orElse: () => null,
     );
+
+    if (todayEntry != null) {
+      _hydrateTodayEntry(todayEntry);
+    } else {
+      todayEntryAsync.maybeWhen(
+        data: (_) => _prepareForNewEntry(),
+        orElse: () {},
+      );
+    }
+
+    final todayDone = todayEntry != null || todayEntryId != null;
 
     final streakCount = streakAsync.maybeWhen(
       data: (value) => value,
       orElse: () => 0,
     );
+
+    final isUpdating = todayDone;
 
     return Scaffold(
       backgroundColor: background,
@@ -480,6 +718,33 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 child: Column(
                   children: [
+                    if (todayEntryAsync.isLoading)
+                      Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: white,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Row(
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 12),
+                            Text(
+                              'Checking today’s entry...',
+                              style: TextStyle(
+                                color: textMuted,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -516,7 +781,7 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                                 ),
                                 child: Icon(
                                   todayDone
-                                      ? Icons.check_circle_rounded
+                                      ? Icons.edit_note_rounded
                                       : Icons.self_improvement_rounded,
                                   color: todayDone ? green : Colors.white,
                                   size: 28,
@@ -529,7 +794,7 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                                   children: [
                                     Text(
                                       todayDone
-                                          ? 'Today’s offering is complete'
+                                          ? 'Today’s offering is editable'
                                           : 'Nourish your daily practice',
                                       style: TextStyle(
                                         color: todayDone
@@ -600,8 +865,9 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                       iconBg: primarySoft,
                       iconColor: primary,
                       title: 'Daily Entry',
-                      subtitle:
-                          'Capture the essentials of your daily devotional practice.',
+                      subtitle: isUpdating
+                          ? 'Review or update today’s devotional practice.'
+                          : 'Capture the essentials of your daily devotional practice.',
                       children: [
                         TextFormField(
                           controller: entryDateController,
@@ -714,6 +980,8 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                         gradient: LinearGradient(
                           colors: isSubmitting
                               ? [Colors.grey.shade400, Colors.grey.shade500]
+                              : isUpdating
+                              ? const [green, Color(0xFF15803D)]
                               : const [primary, primaryDark],
                         ),
                         borderRadius: BorderRadius.circular(20),
@@ -721,7 +989,8 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                             ? const []
                             : [
                                 BoxShadow(
-                                  color: primary.withOpacity(0.24),
+                                  color: (isUpdating ? green : primary)
+                                      .withOpacity(0.24),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -732,10 +1001,16 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                         icon: Icon(
                           isSubmitting
                               ? Icons.hourglass_top_rounded
+                              : isUpdating
+                              ? Icons.save_rounded
                               : Icons.favorite_rounded,
                         ),
                         label: Text(
-                          isSubmitting ? 'Submitting...' : 'Submit Sadhana',
+                          isSubmitting
+                              ? (isUpdating ? 'Updating...' : 'Submitting...')
+                              : (isUpdating
+                                    ? 'Update Sadhana'
+                                    : 'Submit Sadhana'),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -755,6 +1030,20 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
                         ),
                       ),
                     ),
+                    if (isUpdating) ...[
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: isSubmitting
+                            ? null
+                            : () {
+                                setState(() {
+                                  _resetForm();
+                                });
+                              },
+                        icon: const Icon(Icons.add_circle_outline_rounded),
+                        label: const Text('Clear form for a new entry'),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                   ],
                 ),
