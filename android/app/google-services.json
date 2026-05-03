@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "320688873842",
+    "project_id": "bhaktistepspushnotify",
+    "storage_bucket": "bhaktistepspushnotify.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320688873842:android:28c99e1fb98ffbb4ed7deb",
+        "android_client_info": {
+          "package_name": "com.example.mobile_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC12pTSOHCFx3Pu6WdX503Kxy6rvo4kQys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320688873842:android:e67afd7660a84c42ed7deb",
+        "android_client_info": {
+          "package_name": "com.kanaisys.bhaktisteps"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC12pTSOHCFx3Pu6WdX503Kxy6rvo4kQys"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
