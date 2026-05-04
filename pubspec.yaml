@@ -41,11 +41,11 @@ flutter:
 
 flutter_native_splash:
   color: "#FFFBF4"
-  image: assets/images/cdmlogoabout_2.jpg
+  image: assets/images/bs_logo_splash.png
 
   android_12:
     color: "#FFFBF4"
-    image: assets/images/cdmlogoabout_2.jpg
+    image: assets/images/bs_logo_splash.png
 
   ios: true
   android: true
