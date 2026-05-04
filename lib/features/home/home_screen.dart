@@ -79,7 +79,16 @@ class HomeScreen extends ConsumerWidget {
               ),
               eventsAsync.when(
                 data: (events) {
-                  if (events.isEmpty) {
+                  final now = DateTime.now();
+
+                  final upcomingEvents =
+                      events
+                          .where((event) => event.isActive)
+                          .where((event) => event.endsAt.toLocal().isAfter(now))
+                          .toList()
+                        ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+
+                  if (upcomingEvents.isEmpty) {
                     return const SliverToBoxAdapter(
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: 20),
@@ -91,9 +100,12 @@ class HomeScreen extends ConsumerWidget {
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                     sliver: SliverList.separated(
-                      itemCount: events.length > 5 ? 5 : events.length,
+                      itemCount: upcomingEvents.length > 5
+                          ? 5
+                          : upcomingEvents.length,
                       itemBuilder: (context, index) {
-                        final event = events[index];
+                        final event = upcomingEvents[index];
+
                         return _EventCard(
                           title: event.title,
                           category: _beautifyText(event.category),

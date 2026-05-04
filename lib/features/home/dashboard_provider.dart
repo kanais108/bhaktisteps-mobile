@@ -25,11 +25,18 @@ final dashboardProvider = FutureProvider<DashboardData>((ref) async {
     return DashboardData(upcomingEvents: 0, sadhanaDoneToday: false, streak: 0);
   }
 
+  final now = DateTime.now();
+
+  final upcomingEvents = events
+      .where((event) => event.isActive)
+      .where((event) => event.endsAt.toLocal().isAfter(now))
+      .length;
+
   final isDone = await ref.watch(sadhanaTodayProvider.future);
   final streak = await ref.watch(sadhanaStreakProvider.future);
 
   return DashboardData(
-    upcomingEvents: events.length,
+    upcomingEvents: upcomingEvents,
     sadhanaDoneToday: isDone,
     streak: streak,
   );
