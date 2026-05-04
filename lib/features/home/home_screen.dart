@@ -9,6 +9,9 @@ import '../sadhana/sadhana_today_provider.dart';
 import '../../navigation/app_router.dart';
 import '../users/user_session_provider.dart';
 import '../users/user_selector_screen.dart';
+import '../web/in_app_webview_screen.dart';
+import '../contact/contact_us_screen.dart';
+import '../content/content_page_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -346,7 +349,14 @@ class _BhaktiDrawer extends ConsumerWidget {
                       title: 'About Us',
                       onTap: () {
                         _closeDrawer(context);
-                        HomeScreen.showComingSoon(context, 'About Us');
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ContentPageScreen(
+                              slug: 'about-us',
+                              fallbackTitle: 'About Us',
+                            ),
+                          ),
+                        );
                       },
                     ),
                     _DrawerTile(
@@ -354,7 +364,11 @@ class _BhaktiDrawer extends ConsumerWidget {
                       title: 'Contact Us',
                       onTap: () {
                         _closeDrawer(context);
-                        HomeScreen.showComingSoon(context, 'Contact Us');
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ContactUsScreen(),
+                          ),
+                        );
                       },
                     ),
                     _DrawerTile(
@@ -362,9 +376,13 @@ class _BhaktiDrawer extends ConsumerWidget {
                       title: 'Temple Songs & Prayers',
                       onTap: () {
                         _closeDrawer(context);
-                        HomeScreen.showComingSoon(
-                          context,
-                          'Temple Songs & Prayers',
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ContentPageScreen(
+                              slug: 'temple-songs-prayers',
+                              fallbackTitle: 'Temple Songs & Prayers',
+                            ),
+                          ),
                         );
                       },
                     ),
