@@ -27,10 +27,33 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.4.7
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
-  
+
   assets:
     - assets/images/prabhupada_bg.png
     - assets/images/bs_logo.png
+    - assets/images/cdmlogoabout_2.jpg
+
+
+flutter_native_splash:
+  color: "#FFFBF4"
+  image: assets/images/cdmlogoabout_2.jpg
+
+  android_12:
+    color: "#FFFBF4"
+    image: assets/images/cdmlogoabout_2.jpg
+
+  ios: true
+  android: true
+  web: false
+ 
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/bs_logo.png
+  remove_alpha_ios: true
