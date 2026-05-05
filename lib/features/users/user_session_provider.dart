@@ -41,16 +41,29 @@ class SelectedUserNotifier extends StateNotifier<AppUser?> {
     final role = prefs.getString('user_role');
     final token = prefs.getString('auth_token');
 
-    if (id != null && fullName != null && role != null) {
-      state = AppUser(
-        id: id,
-        fullName: fullName,
-        email: email,
-        phone: phone,
-        role: role,
-        token: token,
-      );
+    final hasBasicUser = id != null && fullName != null && role != null;
+    final hasValidToken = token != null && token.trim().isNotEmpty;
+
+    if (!hasBasicUser || !hasValidToken) {
+      await prefs.remove('user_id');
+      await prefs.remove('user_full_name');
+      await prefs.remove('user_email');
+      await prefs.remove('user_phone');
+      await prefs.remove('user_role');
+      await prefs.remove('auth_token');
+
+      state = null;
+      return;
     }
+
+    state = AppUser(
+      id: id,
+      fullName: fullName,
+      email: email,
+      phone: phone,
+      role: role,
+      token: token,
+    );
   }
 
   Future<void> setUser(AppUser user) async {
