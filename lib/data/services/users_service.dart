@@ -23,7 +23,7 @@ class UsersService {
     required String email,
   }) async {
     final Response response = await apiService.dio.post(
-      '/users',
+      '/users/register',
       data: {'fullName': fullName, 'email': email.trim()},
     );
 
