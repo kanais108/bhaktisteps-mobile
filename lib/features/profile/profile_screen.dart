@@ -7,6 +7,8 @@ import '../sadhana/sadhana_streak_provider.dart';
 import '../sadhana/sadhana_today_provider.dart';
 import '../users/user_selector_screen.dart';
 import '../users/user_session_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -222,6 +224,47 @@ class ProfileScreen extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _reportIssue(BuildContext context, AppUser user) async {
+    const supportEmail = 'rohitsingh949@gmail.com';
+
+    final packageInfo = await PackageInfo.fromPlatform();
+
+    final subject = 'Bhakti Steps App Issue';
+
+    final body =
+        '''
+Hare Krishna,
+
+I am facing this issue:
+
+
+Device:
+App Version: ${packageInfo.version} (${packageInfo.buildNumber})
+User: ${user.fullName}
+Email: ${user.email ?? ''}
+
+Please describe what happened:
+''';
+
+    final uri = Uri(
+      scheme: 'mailto',
+      path: supportEmail,
+      queryParameters: {'subject': subject, 'body': body},
+    );
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not open email app. Please contact support manually.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
@@ -725,6 +768,41 @@ class ProfileScreen extends ConsumerWidget {
                               );
                             },
                           ),
+                          const Divider(height: 18),
+                          _actionTile(
+                            icon: Icons.bug_report_outlined,
+                            title: 'Report an Issue',
+                            subtitle: 'Send feedback or report a problem',
+                            iconBg: const Color(0xFFFFF7ED),
+                            iconColor: accent,
+                            onTap: () => _reportIssue(context, selectedUser),
+                          ),
+                          const Divider(height: 18),
+                          _actionTile(
+                            icon: Icons.info_outline_rounded,
+                            title: 'App Info',
+                            subtitle: 'Bhakti Steps',
+                            iconBg: const Color(0xFFEFF6FF),
+                            iconColor: primary,
+                            onTap: () {
+                              _showComingSoon(
+                                context,
+                                title: 'Bhakti Steps',
+                                message:
+                                    'You are using the latest installed version of Bhakti Steps.',
+                                icon: Icons.info_outline_rounded,
+                                color: primary,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          const Padding(
+                            padding: EdgeInsets.only(left: 62),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: _AppVersionText(),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -750,6 +828,33 @@ class ProfileScreen extends ConsumerWidget {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _AppVersionText extends StatelessWidget {
+  const _AppVersionText();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<PackageInfo>(
+      future: PackageInfo.fromPlatform(),
+      builder: (context, snapshot) {
+        final packageInfo = snapshot.data;
+
+        final versionText = packageInfo == null
+            ? 'Version loading...'
+            : 'Version ${packageInfo.version} (${packageInfo.buildNumber})';
+
+        return Text(
+          versionText,
+          style: const TextStyle(
+            color: ProfileScreen.textMuted,
+            fontSize: 13,
+            height: 1.35,
+          ),
+        );
+      },
     );
   }
 }
