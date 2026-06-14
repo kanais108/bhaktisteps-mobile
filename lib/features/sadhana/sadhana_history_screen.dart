@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'sadhana_history_provider.dart';
+import 'sadhana_today_provider.dart';
+import '../users/user_session_provider.dart';
 
 class SadhanaHistoryScreen extends ConsumerWidget {
   const SadhanaHistoryScreen({super.key});
@@ -125,9 +127,14 @@ class SadhanaHistoryScreen extends ConsumerWidget {
             });
 
             if (history.isEmpty) {
-              return const SingleChildScrollView(
-                physics: AlwaysScrollableScrollPhysics(),
-                child: SizedBox(height: 620, child: _EmptyState()),
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 26),
+                children: const [
+                  _SadhanaReportActions(),
+                  SizedBox(height: 18),
+                  SizedBox(height: 520, child: _EmptyState()),
+                ],
               );
             }
 
@@ -139,12 +146,18 @@ class SadhanaHistoryScreen extends ConsumerWidget {
                   SizedBox(height: index == 0 ? 18 : 14),
               itemBuilder: (context, index) {
                 if (index == 0) {
-                  return _HistorySummaryCard(
-                    totalEntries: history.length,
-                    totalJapa: _totalJapa(history),
-                    totalReading: _totalReading(history),
-                    totalService: _totalService(history),
-                    perfectDays: _perfectDays(history),
+                  return Column(
+                    children: [
+                      _HistorySummaryCard(
+                        totalEntries: history.length,
+                        totalJapa: _totalJapa(history),
+                        totalReading: _totalReading(history),
+                        totalService: _totalService(history),
+                        perfectDays: _perfectDays(history),
+                      ),
+                      const SizedBox(height: 16),
+                      const _SadhanaReportActions(),
+                    ],
                   );
                 }
 
@@ -177,6 +190,487 @@ class SadhanaHistoryScreen extends ConsumerWidget {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _SadhanaReportActions extends ConsumerWidget {
+  const _SadhanaReportActions();
+
+  String _dateKey(DateTime date) {
+    final local = date.toLocal();
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  String _displayDate(DateTime date) {
+    return DateFormat('dd MMM yyyy').format(date.toLocal());
+  }
+
+  Future<DateTime?> _pickDate(
+    BuildContext context, {
+    required DateTime initialDate,
+    required DateTime firstDate,
+    required DateTime lastDate,
+  }) {
+    return showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: 'Select Date',
+    );
+  }
+
+  Future<void> _showReportSheet(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(selectedUserProvider);
+
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please login again')));
+      return;
+    }
+
+    final today = DateTime.now();
+    DateTime fromDate = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).subtract(const Duration(days: 30));
+    DateTime toDate = DateTime(today.year, today.month, today.day);
+
+    final emailController = TextEditingController(text: user.email ?? '');
+    bool isWorking = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> runAction(Future<void> Function() action) async {
+              if (isWorking) return;
+
+              setModalState(() {
+                isWorking = true;
+              });
+
+              try {
+                await action();
+              } finally {
+                if (context.mounted) {
+                  setModalState(() {
+                    isWorking = false;
+                  });
+                }
+              }
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: SadhanaHistoryScreen.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 28,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 44,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        const Text(
+                          'Sadhana Report',
+                          style: TextStyle(
+                            color: SadhanaHistoryScreen.textDark,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Download your sadhana sheet or send it by email.',
+                          style: TextStyle(
+                            color: SadhanaHistoryScreen.textMuted,
+                            fontSize: 13.5,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ReportDateBox(
+                                label: 'From',
+                                value: _displayDate(fromDate),
+                                onTap: isWorking
+                                    ? null
+                                    : () async {
+                                        final picked = await _pickDate(
+                                          context,
+                                          initialDate: fromDate,
+                                          firstDate: DateTime(2024),
+                                          lastDate: toDate,
+                                        );
+
+                                        if (picked != null) {
+                                          setModalState(() {
+                                            fromDate = DateTime(
+                                              picked.year,
+                                              picked.month,
+                                              picked.day,
+                                            );
+                                          });
+                                        }
+                                      },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _ReportDateBox(
+                                label: 'To',
+                                value: _displayDate(toDate),
+                                onTap: isWorking
+                                    ? null
+                                    : () async {
+                                        final picked = await _pickDate(
+                                          context,
+                                          initialDate: toDate,
+                                          firstDate: fromDate,
+                                          lastDate: DateTime(2100),
+                                        );
+
+                                        if (picked != null) {
+                                          setModalState(() {
+                                            toDate = DateTime(
+                                              picked.year,
+                                              picked.month,
+                                              picked.day,
+                                            );
+                                          });
+                                        }
+                                      },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: emailController,
+                          enabled: !isWorking,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: InputDecoration(
+                            labelText: 'Email report to',
+                            prefixIcon: const Icon(Icons.email_rounded),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFF),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: isWorking
+                                ? null
+                                : () {
+                                    runAction(() async {
+                                      final service = ref.read(
+                                        sadhanaTodayServiceProvider,
+                                      );
+
+                                      await service
+                                          .exportAndOpenMySadhanaReport(
+                                            userId: user.id,
+                                            fromDate: fromDate,
+                                            toDate: toDate,
+                                          );
+
+                                      if (!sheetContext.mounted) return;
+
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Sadhana sheet downloaded for ${_dateKey(fromDate)} to ${_dateKey(toDate)}',
+                                          ),
+                                        ),
+                                      );
+                                    });
+                                  },
+                            icon: Icon(
+                              isWorking
+                                  ? Icons.hourglass_top_rounded
+                                  : Icons.file_download_rounded,
+                            ),
+                            label: Text(
+                              isWorking ? 'Please wait...' : 'Download Excel',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: SadhanaHistoryScreen.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: isWorking
+                                ? null
+                                : () {
+                                    runAction(() async {
+                                      final email = emailController.text.trim();
+
+                                      if (email.isEmpty ||
+                                          !RegExp(
+                                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+                                          ).hasMatch(email)) {
+                                        ScaffoldMessenger.of(
+                                          sheetContext,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Please enter a valid email address',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      final service = ref.read(
+                                        sadhanaTodayServiceProvider,
+                                      );
+
+                                      await service.emailMySadhanaReport(
+                                        userId: user.id,
+                                        fromDate: fromDate,
+                                        toDate: toDate,
+                                        email: email,
+                                      );
+
+                                      if (!sheetContext.mounted) return;
+
+                                      final messenger = ScaffoldMessenger.of(
+                                        context,
+                                      );
+
+                                      Navigator.of(sheetContext).pop();
+
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Sadhana report emailed to $email',
+                                          ),
+                                        ),
+                                      );
+                                    });
+                                  },
+                            icon: const Icon(Icons.send_rounded),
+                            label: const Text(
+                              'Email Report',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: SadhanaHistoryScreen.primary,
+                              side: BorderSide(
+                                color: SadhanaHistoryScreen.primary.withOpacity(
+                                  0.35,
+                                ),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    //emailController.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: SadhanaHistoryScreen.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: SadhanaHistoryScreen.primary.withOpacity(0.10),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.045),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: SadhanaHistoryScreen.primarySoft,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.table_chart_rounded,
+              color: SadhanaHistoryScreen.primary,
+              size: 25,
+            ),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Export Sadhana Sheet',
+                  style: TextStyle(
+                    color: SadhanaHistoryScreen.textDark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Download or email your Excel report',
+                  style: TextStyle(
+                    color: SadhanaHistoryScreen.textMuted,
+                    fontSize: 12.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: () => _showReportSheet(context, ref),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SadhanaHistoryScreen.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: const Text(
+              'Open',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReportDateBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+
+  const _ReportDateBox({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF8FAFF),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: SadhanaHistoryScreen.primary.withOpacity(0.10),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: SadhanaHistoryScreen.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: SadhanaHistoryScreen.textDark,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

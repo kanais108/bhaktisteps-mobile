@@ -572,6 +572,34 @@ class _ErrorState extends StatelessWidget {
 
   const _ErrorState({required this.error});
 
+  String get _friendlyMessage {
+    var message = error.trim();
+
+    if (message.startsWith('Exception:')) {
+      message = message.replaceFirst('Exception:', '').trim();
+    }
+
+    if (message.contains('Session expired') ||
+        message.contains('401') ||
+        message.contains('login again')) {
+      return 'Please login again to view events.';
+    }
+
+    if (message.contains('timed out')) {
+      return 'Events are taking longer than expected. Please pull down to refresh.';
+    }
+
+    if (message.contains('DioException')) {
+      return 'Could not load events. Please pull down to refresh.';
+    }
+
+    if (message.isEmpty) {
+      return 'Could not load events. Please pull down to refresh.';
+    }
+
+    return message;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
@@ -592,7 +620,7 @@ class _ErrorState extends StatelessWidget {
             ],
           ),
           child: Text(
-            'Could not load events.\n$error',
+            _friendlyMessage,
             textAlign: TextAlign.center,
             style: const TextStyle(color: EventsScreen.textMuted, height: 1.4),
           ),

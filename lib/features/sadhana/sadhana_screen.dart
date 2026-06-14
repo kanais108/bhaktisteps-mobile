@@ -61,6 +61,10 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
     super.dispose();
   }
 
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   String _todayIsoDate() {
     return DateTime.now().toIso8601String().split('T').first;
   }
@@ -147,6 +151,8 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
   }
 
   Future<void> _refreshData() async {
+    _dismissKeyboard();
+
     ref.invalidate(sadhanaTodayEntryProvider);
     ref.invalidate(sadhanaTodayProvider);
     ref.invalidate(dashboardProvider);
@@ -165,6 +171,8 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
   }
 
   Future<void> _pickEntryDate() async {
+    _dismissKeyboard();
+
     final initialDate =
         DateTime.tryParse(entryDateController.text) ?? DateTime.now();
 
@@ -201,7 +209,7 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
   }
 
   Future<void> submitForm() async {
-    FocusScope.of(context).unfocus();
+    _dismissKeyboard();
 
     final selectedUser = ref.read(selectedUserProvider);
     if (selectedUser == null) {
@@ -524,6 +532,9 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
       child: TextFormField(
         controller: controller,
         keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        onEditingComplete: _dismissKeyboard,
+        onFieldSubmitted: (_) => _dismissKeyboard(),
         decoration: _inputDecoration(
           label: label,
           helperText: helperText,
@@ -636,419 +647,438 @@ class _SadhanaScreenState extends ConsumerState<SadhanaScreen> {
           ),
         ],
       ),
-      body: selectedUser == null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Container(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _dismissKeyboard,
+        child: selectedUser == null
+            ? Center(
+                child: Padding(
                   padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: white,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: primarySoft,
-                          borderRadius: BorderRadius.circular(22),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
                         ),
-                        child: const Icon(
-                          Icons.person_search_rounded,
-                          size: 36,
-                          color: primary,
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 72,
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: primarySoft,
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          child: const Icon(
+                            Icons.person_search_rounded,
+                            size: 36,
+                            color: primary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No devotee selected',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: textDark,
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No devotee selected',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: textDark,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Please log in to continue and begin your daily practice.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: textMuted, height: 1.4),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const UserSelectorScreen(),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Please log in to continue and begin your daily practice.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: textMuted, height: 1.4),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () async {
+                            _dismissKeyboard();
+
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const UserSelectorScreen(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primary,
+                            foregroundColor: white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 14,
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primary,
-                          foregroundColor: white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 14,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                          child: const Text('Go to Login'),
                         ),
-                        child: const Text('Go to Login'),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _refreshData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: Column(
-                  children: [
-                    if (todayEntryAsync.isLoading)
+              )
+            : RefreshIndicator(
+                onRefresh: _refreshData,
+                child: SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: Column(
+                    children: [
+                      if (todayEntryAsync.isLoading)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: white,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Row(
+                            children: [
+                              SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Checking today’s entry...',
+                                style: TextStyle(
+                                  color: textMuted,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       Container(
                         width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: white,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: const Row(
-                          children: [
-                            SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                            SizedBox(width: 12),
-                            Text(
-                              'Checking today’s entry...',
-                              style: TextStyle(
-                                color: textMuted,
-                                fontWeight: FontWeight.w700,
+                          gradient: LinearGradient(
+                            colors: todayDone
+                                ? const [Color(0xFFE8F7EC), Color(0xFFD8F5E1)]
+                                : const [Color(0xFF4F7BFF), Color(0xFF7A5AF8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                          boxShadow: [
+                            BoxShadow(
+                              color: (todayDone ? green : primary).withOpacity(
+                                0.18,
                               ),
+                              blurRadius: 24,
+                              offset: const Offset(0, 14),
                             ),
                           ],
                         ),
-                      ),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: todayDone
-                              ? const [Color(0xFFE8F7EC), Color(0xFFD8F5E1)]
-                              : const [Color(0xFF4F7BFF), Color(0xFF7A5AF8)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(28),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (todayDone ? green : primary).withOpacity(
-                              0.18,
-                            ),
-                            blurRadius: 24,
-                            offset: const Offset(0, 14),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 54,
-                                height: 54,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.20),
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                                child: Icon(
-                                  todayDone
-                                      ? Icons.edit_note_rounded
-                                      : Icons.self_improvement_rounded,
-                                  color: todayDone ? green : Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      todayDone
-                                          ? 'Today’s offering is editable'
-                                          : 'Nourish your daily practice',
-                                      style: TextStyle(
-                                        color: todayDone
-                                            ? textDark
-                                            : Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w900,
-                                        height: 1.1,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      _statusMessage(todayDone, streakCount),
-                                      style: TextStyle(
-                                        color: todayDone
-                                            ? textMuted
-                                            : Colors.white.withOpacity(0.92),
-                                        fontSize: 13.5,
-                                        height: 1.4,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _SummaryStat(
-                                  label: 'Current streak',
-                                  value:
-                                      '$streakCount day${streakCount == 1 ? '' : 's'}',
-                                  icon: Icons.local_fire_department_rounded,
-                                  iconColor: accent,
-                                  background: Colors.white.withOpacity(
-                                    todayDone ? 0.90 : 0.16,
-                                  ),
-                                  textColor: todayDone
-                                      ? textDark
-                                      : Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _SummaryStat(
-                                  label: 'Practices today',
-                                  value: '$_practiceCount / 4',
-                                  icon: Icons.favorite_rounded,
-                                  iconColor: pink,
-                                  background: Colors.white.withOpacity(
-                                    todayDone ? 0.90 : 0.16,
-                                  ),
-                                  textColor: todayDone
-                                      ? textDark
-                                      : Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    _sectionCard(
-                      icon: Icons.calendar_month_rounded,
-                      iconBg: primarySoft,
-                      iconColor: primary,
-                      title: 'Daily Entry',
-                      subtitle: isUpdating
-                          ? 'Review or update today’s devotional practice.'
-                          : 'Capture the essentials of your daily devotional practice.',
-                      children: [
-                        TextFormField(
-                          controller: entryDateController,
-                          readOnly: true,
-                          onTap: _pickEntryDate,
-                          decoration: _inputDecoration(
-                            label: 'Entry Date',
-                            helperText: 'Tap to choose the date for this entry',
-                            suffixIcon: const Icon(
-                              Icons.calendar_today_rounded,
-                              color: primary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _metricField(
-                              controller: japaRoundsController,
-                              label: 'Japa',
-                              suffix: 'rounds',
-                              helperText: 'Daily target is often 16',
-                            ),
-                            const SizedBox(width: 12),
-                            _metricField(
-                              controller: readingMinutesController,
-                              label: 'Reading',
-                              suffix: 'min',
-                              helperText: 'Scripture reading time',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: serviceMinutesController,
-                          keyboardType: TextInputType.number,
-                          decoration: _inputDecoration(
-                            label: 'Service Minutes',
-                            helperText: 'Time spent in seva today',
-                          ).copyWith(suffixText: 'min'),
-                        ),
-                      ],
-                    ),
-                    _sectionCard(
-                      icon: Icons.auto_awesome_rounded,
-                      iconBg: const Color(0xFFFFF7ED),
-                      iconColor: accent,
-                      title: 'Practices',
-                      subtitle:
-                          'Mark the devotional activities you attended today.',
-                      children: [
-                        _practiceTile(
-                          title: 'Mangala Arati',
-                          subtitle: 'Begin the day with sacred morning worship',
-                          value: mangalaArati,
-                          activeColor: primary,
-                          onChanged: (value) =>
-                              setState(() => mangalaArati = value),
-                        ),
-                        _practiceTile(
-                          title: 'Tulasi Puja',
-                          subtitle:
-                              'Offer your prayers and devotion with gratitude',
-                          value: tulasiPuja,
-                          activeColor: green,
-                          onChanged: (value) =>
-                              setState(() => tulasiPuja = value),
-                        ),
-                        _practiceTile(
-                          title: 'Guru Puja',
-                          subtitle: 'Honor the guru-parampara with devotion',
-                          value: guruPuja,
-                          activeColor: pink,
-                          onChanged: (value) =>
-                              setState(() => guruPuja = value),
-                        ),
-                        _practiceTile(
-                          title: 'Bhagavatam Class',
-                          subtitle:
-                              'Nourish the heart through hearing and reflection',
-                          value: bhagavatamClass,
-                          activeColor: accent,
-                          onChanged: (value) =>
-                              setState(() => bhagavatamClass = value),
-                        ),
-                      ],
-                    ),
-                    _sectionCard(
-                      icon: Icons.edit_note_rounded,
-                      iconBg: const Color(0xFFF3E8FF),
-                      iconColor: const Color(0xFF7C3AED),
-                      title: 'Reflection',
-                      subtitle:
-                          'Write one thought, gratitude, or insight from your day.',
-                      children: [
-                        TextFormField(
-                          controller: notesController,
-                          maxLines: 5,
-                          decoration: _inputDecoration(
-                            label: 'Notes',
-                            helperText:
-                                'Optional, but great for building mindful reflection',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: isSubmitting
-                              ? [Colors.grey.shade400, Colors.grey.shade500]
-                              : isUpdating
-                              ? const [green, Color(0xFF15803D)]
-                              : const [primary, primaryDark],
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: isSubmitting
-                            ? const []
-                            : [
-                                BoxShadow(
-                                  color: (isUpdating ? green : primary)
-                                      .withOpacity(0.24),
-                                  blurRadius: 20,
-                                  offset: const Offset(0, 10),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 54,
+                                  height: 54,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.20),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: Icon(
+                                    todayDone
+                                        ? Icons.edit_note_rounded
+                                        : Icons.self_improvement_rounded,
+                                    color: todayDone ? green : Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        todayDone
+                                            ? 'Today’s offering is editable'
+                                            : 'Nourish your daily practice',
+                                        style: TextStyle(
+                                          color: todayDone
+                                              ? textDark
+                                              : Colors.white,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                          height: 1.1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        _statusMessage(todayDone, streakCount),
+                                        style: TextStyle(
+                                          color: todayDone
+                                              ? textMuted
+                                              : Colors.white.withOpacity(0.92),
+                                          fontSize: 13.5,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
-                      ),
-                      child: ElevatedButton.icon(
-                        onPressed: isSubmitting ? null : submitForm,
-                        icon: Icon(
-                          isSubmitting
-                              ? Icons.hourglass_top_rounded
-                              : isUpdating
-                              ? Icons.save_rounded
-                              : Icons.favorite_rounded,
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _SummaryStat(
+                                    label: 'Current streak',
+                                    value:
+                                        '$streakCount day${streakCount == 1 ? '' : 's'}',
+                                    icon: Icons.local_fire_department_rounded,
+                                    iconColor: accent,
+                                    background: Colors.white.withOpacity(
+                                      todayDone ? 0.90 : 0.16,
+                                    ),
+                                    textColor: todayDone
+                                        ? textDark
+                                        : Colors.white,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _SummaryStat(
+                                    label: 'Practices today',
+                                    value: '$_practiceCount / 4',
+                                    icon: Icons.favorite_rounded,
+                                    iconColor: pink,
+                                    background: Colors.white.withOpacity(
+                                      todayDone ? 0.90 : 0.16,
+                                    ),
+                                    textColor: todayDone
+                                        ? textDark
+                                        : Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        label: Text(
-                          isSubmitting
-                              ? (isUpdating ? 'Updating...' : 'Submitting...')
-                              : (isUpdating
-                                    ? 'Update Sadhana'
-                                    : 'Submit Sadhana'),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                      ),
+                      const SizedBox(height: 18),
+                      _sectionCard(
+                        icon: Icons.calendar_month_rounded,
+                        iconBg: primarySoft,
+                        iconColor: primary,
+                        title: 'Daily Entry',
+                        subtitle: isUpdating
+                            ? 'Review or update today’s devotional practice.'
+                            : 'Capture the essentials of your daily devotional practice.',
+                        children: [
+                          TextFormField(
+                            controller: entryDateController,
+                            readOnly: true,
+                            onTap: _pickEntryDate,
+                            decoration: _inputDecoration(
+                              label: 'Entry Date',
+                              helperText:
+                                  'Tap to choose the date for this entry',
+                              suffixIcon: const Icon(
+                                Icons.calendar_today_rounded,
+                                color: primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              _metricField(
+                                controller: japaRoundsController,
+                                label: 'Japa',
+                                suffix: 'rounds',
+                                helperText: 'Daily target is often 16',
+                              ),
+                              const SizedBox(width: 12),
+                              _metricField(
+                                controller: readingMinutesController,
+                                label: 'Reading',
+                                suffix: 'min',
+                                helperText: 'Scripture reading time',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: serviceMinutesController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
+                            onEditingComplete: _dismissKeyboard,
+                            onFieldSubmitted: (_) => _dismissKeyboard(),
+                            decoration: _inputDecoration(
+                              label: 'Service Minutes',
+                              helperText: 'Time spent in seva today',
+                            ).copyWith(suffixText: 'min'),
+                          ),
+                        ],
+                      ),
+                      _sectionCard(
+                        icon: Icons.auto_awesome_rounded,
+                        iconBg: const Color(0xFFFFF7ED),
+                        iconColor: accent,
+                        title: 'Practices',
+                        subtitle:
+                            'Mark the devotional activities you attended today.',
+                        children: [
+                          _practiceTile(
+                            title: 'Mangala Arati',
+                            subtitle:
+                                'Begin the day with sacred morning worship',
+                            value: mangalaArati,
+                            activeColor: primary,
+                            onChanged: (value) =>
+                                setState(() => mangalaArati = value),
+                          ),
+                          _practiceTile(
+                            title: 'Tulasi Puja',
+                            subtitle:
+                                'Offer your prayers and devotion with gratitude',
+                            value: tulasiPuja,
+                            activeColor: green,
+                            onChanged: (value) =>
+                                setState(() => tulasiPuja = value),
+                          ),
+                          _practiceTile(
+                            title: 'Guru Puja',
+                            subtitle: 'Honor the guru-parampara with devotion',
+                            value: guruPuja,
+                            activeColor: pink,
+                            onChanged: (value) =>
+                                setState(() => guruPuja = value),
+                          ),
+                          _practiceTile(
+                            title: 'Bhagavatam Class',
+                            subtitle:
+                                'Nourish the heart through hearing and reflection',
+                            value: bhagavatamClass,
+                            activeColor: accent,
+                            onChanged: (value) =>
+                                setState(() => bhagavatamClass = value),
+                          ),
+                        ],
+                      ),
+                      _sectionCard(
+                        icon: Icons.edit_note_rounded,
+                        iconBg: const Color(0xFFF3E8FF),
+                        iconColor: const Color(0xFF7C3AED),
+                        title: 'Reflection',
+                        subtitle:
+                            'Write one thought, gratitude, or insight from your day.',
+                        children: [
+                          TextFormField(
+                            controller: notesController,
+                            maxLines: 5,
+                            textInputAction: TextInputAction.newline,
+                            decoration: _inputDecoration(
+                              label: 'Notes',
+                              helperText:
+                                  'Optional, but great for building mindful reflection',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isSubmitting
+                                ? [Colors.grey.shade400, Colors.grey.shade500]
+                                : isUpdating
+                                ? const [green, Color(0xFF15803D)]
+                                : const [primary, primaryDark],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: isSubmitting
+                              ? const []
+                              : [
+                                  BoxShadow(
+                                    color: (isUpdating ? green : primary)
+                                        .withOpacity(0.24),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                        ),
+                        child: ElevatedButton.icon(
+                          onPressed: isSubmitting ? null : submitForm,
+                          icon: Icon(
+                            isSubmitting
+                                ? Icons.hourglass_top_rounded
+                                : isUpdating
+                                ? Icons.save_rounded
+                                : Icons.favorite_rounded,
+                          ),
+                          label: Text(
+                            isSubmitting
+                                ? (isUpdating ? 'Updating...' : 'Submitting...')
+                                : (isUpdating
+                                      ? 'Update Sadhana'
+                                      : 'Submit Sadhana'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: white,
+                            disabledBackgroundColor: Colors.transparent,
+                            disabledForegroundColor: white,
+                            shadowColor: Colors.transparent,
+                            elevation: 0,
+                            minimumSize: const Size(double.infinity, 58),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
                         ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          foregroundColor: white,
-                          disabledBackgroundColor: Colors.transparent,
-                          disabledForegroundColor: white,
-                          shadowColor: Colors.transparent,
-                          elevation: 0,
-                          minimumSize: const Size(double.infinity, 58),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
+                      ),
+                      if (isUpdating) ...[
+                        const SizedBox(height: 12),
+                        TextButton.icon(
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  _dismissKeyboard();
+
+                                  setState(() {
+                                    _resetForm();
+                                  });
+                                },
+                          icon: const Icon(Icons.add_circle_outline_rounded),
+                          label: const Text('Clear form for a new entry'),
                         ),
-                      ),
-                    ),
-                    if (isUpdating) ...[
-                      const SizedBox(height: 12),
-                      TextButton.icon(
-                        onPressed: isSubmitting
-                            ? null
-                            : () {
-                                setState(() {
-                                  _resetForm();
-                                });
-                              },
-                        icon: const Icon(Icons.add_circle_outline_rounded),
-                        label: const Text('Clear form for a new entry'),
-                      ),
+                      ],
+                      const SizedBox(height: 24),
                     ],
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }

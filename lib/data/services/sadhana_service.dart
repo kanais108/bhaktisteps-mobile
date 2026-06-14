@@ -1,4 +1,9 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+
 import 'api_service.dart';
 
 class SadhanaService {
@@ -81,5 +86,84 @@ class SadhanaService {
     );
 
     return response.data as List<dynamic>;
+  }
+
+  Future<File> exportMySadhanaReport({
+    required String userId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final from = _dateKey(fromDate);
+    final to = _dateKey(toDate);
+
+    final Response<List<int>> response = await apiService.dio.get<List<int>>(
+      '/sadhana/report/export',
+      queryParameters: {'userId': userId, 'fromDate': from, 'toDate': to},
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(seconds: 60),
+      ),
+    );
+
+    final bytes = response.data;
+
+    if (bytes == null || bytes.isEmpty) {
+      throw Exception('Empty report received');
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+
+    final file = File(
+      '${directory.path}/bhakti-steps-sadhana-$from-to-$to.xlsx',
+    );
+
+    await file.writeAsBytes(bytes, flush: true);
+
+    return file;
+  }
+
+  Future<void> exportAndOpenMySadhanaReport({
+    required String userId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final file = await exportMySadhanaReport(
+      userId: userId,
+      fromDate: fromDate,
+      toDate: toDate,
+    );
+
+    await OpenFilex.open(file.path);
+  }
+
+  Future<Map<String, dynamic>> emailMySadhanaReport({
+    required String userId,
+    required DateTime fromDate,
+    required DateTime toDate,
+    required String email,
+  }) async {
+    final Response response = await apiService.dio.post(
+      '/sadhana/report/email',
+      data: {
+        'userId': userId,
+        'fromDate': _dateKey(fromDate),
+        'toDate': _dateKey(toDate),
+        'email': email.trim(),
+      },
+      options: Options(
+        receiveTimeout: const Duration(seconds: 60),
+        sendTimeout: const Duration(seconds: 60),
+      ),
+    );
+
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  String _dateKey(DateTime date) {
+    final local = date.toLocal();
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 }
