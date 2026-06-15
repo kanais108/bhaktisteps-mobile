@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../members/member_sadhana_screen.dart';
 import '../sadhana/sadhana_history_provider.dart';
 import '../sadhana/sadhana_history_screen.dart';
 import '../sadhana/sadhana_streak_provider.dart';
@@ -23,6 +24,13 @@ class ProfileScreen extends ConsumerWidget {
   static const Color green = Color(0xFF16A34A);
   static const Color purple = Color(0xFF7C3AED);
   static const Color pink = Color(0xFFEC4899);
+
+  bool _isLeadershipRole(String role) {
+    return role == 'SUPER_ADMIN' ||
+        role == 'CIRCLE_LEADER' ||
+        role == 'SECTOR_LEADER' ||
+        role == 'SERVANT_LEADER';
+  }
 
   String _roleLabel(String role) {
     switch (role) {
@@ -806,6 +814,49 @@ Please describe what happened:
                         ],
                       ),
                     ),
+                    if (_isLeadershipRole(selectedUser.role)) ...[
+                      const SizedBox(height: 18),
+                      _sectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Leadership Tools',
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
+                                color: textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Care for devotees assigned under your leadership.',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: textMuted,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            _actionTile(
+                              icon: Icons.groups_rounded,
+                              title: 'Members Sadhana',
+                              subtitle:
+                                  'View and export Sadhana reports for members',
+                              iconBg: const Color(0xFFEFF6FF),
+                              iconColor: primary,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const MemberSadhanaScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 18),
                     _sectionCard(
                       padding: const EdgeInsets.all(18),

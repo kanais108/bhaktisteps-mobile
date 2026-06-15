@@ -30,10 +30,40 @@ class UsersService {
     return UserModel.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<List<UserModel>> getUsers() async {
-    final response = await apiService.dio.get('/users');
-    final List data = response.data;
+  Future<List<UserModel>> getUsers({
+    String? search,
+    String? role,
+    bool? isActive,
+    int page = 1,
+    int limit = 100,
+  }) async {
+    final response = await apiService.dio.get(
+      '/users',
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+        if (role != null && role.trim().isNotEmpty) 'role': role.trim(),
+        if (isActive != null) 'isActive': isActive.toString(),
+      },
+    );
 
-    return data.map((e) => UserModel.fromJson(e)).toList();
+    final responseData = response.data;
+
+    if (responseData is List) {
+      return responseData
+          .map((e) => UserModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
+    if (responseData is Map && responseData['data'] is List) {
+      final List data = responseData['data'] as List;
+
+      return data
+          .map((e) => UserModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    }
+
+    return [];
   }
 }

@@ -13,3 +13,11 @@ final usersProvider = FutureProvider<List<UserModel>>((ref) async {
   final service = ref.read(usersServiceProvider);
   return service.getUsers();
 });
+
+final activeDevoteeMembersProvider = FutureProvider<List<UserModel>>((
+  ref,
+) async {
+  final service = ref.read(usersServiceProvider);
+
+  return service.getUsers(role: 'DEVOTEE', isActive: true, limit: 100);
+});

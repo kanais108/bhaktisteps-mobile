@@ -159,6 +159,136 @@ class SadhanaService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
+  Future<File> exportMemberSadhanaReport({
+    required String facilitatorUserId,
+    required String memberUserId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final response = await apiService.dio.get<List<int>>(
+      '/sadhana/members/report/export',
+      queryParameters: {
+        'facilitatorUserId': facilitatorUserId,
+        'memberUserId': memberUserId,
+        'fromDate': _formatDate(fromDate),
+        'toDate': _formatDate(toDate),
+      },
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    final directory = await getApplicationDocumentsDirectory();
+
+    final fileName =
+        'member_sadhana_report_${_formatDate(fromDate)}_to_${_formatDate(toDate)}.xlsx';
+
+    final file = File('${directory.path}/$fileName');
+
+    await file.writeAsBytes(response.data ?? []);
+
+    return file;
+  }
+
+  Future<void> exportAndOpenMemberSadhanaReport({
+    required String facilitatorUserId,
+    required String memberUserId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final file = await exportMemberSadhanaReport(
+      facilitatorUserId: facilitatorUserId,
+      memberUserId: memberUserId,
+      fromDate: fromDate,
+      toDate: toDate,
+    );
+
+    await OpenFilex.open(file.path);
+  }
+
+  Future<void> emailMemberSadhanaReport({
+    required String facilitatorUserId,
+    required String memberUserId,
+    required String email,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    await apiService.dio.post(
+      '/sadhana/members/report/email',
+      data: {
+        'facilitatorUserId': facilitatorUserId,
+        'memberUserId': memberUserId,
+        'email': email,
+        'fromDate': _formatDate(fromDate),
+        'toDate': _formatDate(toDate),
+      },
+    );
+  }
+
+  Future<File> exportAllMembersSadhanaReport({
+    required String facilitatorUserId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final response = await apiService.dio.get<List<int>>(
+      '/sadhana/members/report/export',
+      queryParameters: {
+        'facilitatorUserId': facilitatorUserId,
+        'fromDate': _formatDate(fromDate),
+        'toDate': _formatDate(toDate),
+      },
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    final directory = await getApplicationDocumentsDirectory();
+
+    final fileName =
+        'all_members_sadhana_report_${_formatDate(fromDate)}_to_${_formatDate(toDate)}.xlsx';
+
+    final file = File('${directory.path}/$fileName');
+
+    await file.writeAsBytes(response.data ?? []);
+
+    return file;
+  }
+
+  Future<void> exportAndOpenAllMembersSadhanaReport({
+    required String facilitatorUserId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final file = await exportAllMembersSadhanaReport(
+      facilitatorUserId: facilitatorUserId,
+      fromDate: fromDate,
+      toDate: toDate,
+    );
+
+    await OpenFilex.open(file.path);
+  }
+
+  Future<void> emailAllMembersSadhanaReport({
+    required String facilitatorUserId,
+    required String email,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    await apiService.dio.post(
+      '/sadhana/members/report/email',
+      data: {
+        'facilitatorUserId': facilitatorUserId,
+        'email': email,
+        'fromDate': _formatDate(fromDate),
+        'toDate': _formatDate(toDate),
+      },
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+
   String _dateKey(DateTime date) {
     final local = date.toLocal();
     final year = local.year.toString().padLeft(4, '0');
