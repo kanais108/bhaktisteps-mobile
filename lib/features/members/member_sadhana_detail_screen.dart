@@ -22,6 +22,9 @@ class _MemberSadhanaDetailScreenState
 
   bool isDownloading = false;
   bool isEmailing = false;
+  bool isLoadingEntries = false;
+  Map<String, dynamic>? summary;
+  List<dynamic> entries = [];
 
   @override
   void initState() {
@@ -30,6 +33,10 @@ class _MemberSadhanaDetailScreenState
     final now = DateTime.now();
     toDate = DateTime(now.year, now.month, now.day);
     fromDate = toDate.subtract(const Duration(days: 30));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMemberSadhanaHistory();
+    });
   }
 
   @override
@@ -56,6 +63,12 @@ class _MemberSadhanaDetailScreenState
             onEmail: _emailReport,
           ),
           const SizedBox(height: 20),
+          _SadhanaEntriesCard(
+            isLoading: isLoadingEntries,
+            entries: entries,
+            summary: summary,
+          ),
+          const SizedBox(height: 20),
           _InfoCard(memberName: member.fullName),
         ],
       ),
@@ -80,6 +93,8 @@ class _MemberSadhanaDetailScreenState
       );
       toDate = DateTime(picked.end.year, picked.end.month, picked.end.day);
     });
+
+    await _loadMemberSadhanaHistory();
   }
 
   Future<void> _downloadReport() async {
@@ -195,6 +210,50 @@ class _MemberSadhanaDetailScreenState
       if (mounted) {
         setState(() {
           isEmailing = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadMemberSadhanaHistory() async {
+    final selectedUser = ref.read(selectedUserProvider);
+
+    if (selectedUser == null) {
+      return;
+    }
+
+    setState(() {
+      isLoadingEntries = true;
+    });
+
+    try {
+      final service = ref.read(sadhanaServiceProvider);
+
+      final data = await service.getMemberSadhanaHistory(
+        facilitatorUserId: selectedUser.id,
+        memberUserId: widget.member.id,
+        fromDate: fromDate,
+        toDate: toDate,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        summary = Map<String, dynamic>.from(data['summary'] as Map? ?? {});
+        entries = List<dynamic>.from(data['entries'] as List? ?? []);
+      });
+    } catch (error) {
+      debugPrint('Member Sadhana history error: $error');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to load member Sadhana entries.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoadingEntries = false;
         });
       }
     }
@@ -467,6 +526,289 @@ class _ReportActionsCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SadhanaEntriesCard extends StatelessWidget {
+  final bool isLoading;
+  final List<dynamic> entries;
+  final Map<String, dynamic>? summary;
+
+  const _SadhanaEntriesCard({
+    required this.isLoading,
+    required this.entries,
+    required this.summary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final totalEntries = (summary?['totalEntries'] as num?)?.toInt() ?? 0;
+    final averageJapaRounds =
+        (summary?['averageJapaRounds'] as num?)?.toDouble() ?? 0;
+    final totalReadingMinutes =
+        (summary?['totalReadingMinutes'] as num?)?.toInt() ?? 0;
+    final totalServiceMinutes =
+        (summary?['totalServiceMinutes'] as num?)?.toInt() ?? 0;
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: isLoading
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 30),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sadhana Entries',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Visible daily Sadhana entries for the selected period.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryBox(
+                          label: 'Entries',
+                          value: '$totalEntries',
+                          icon: Icons.check_circle_outline,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _SummaryBox(
+                          label: 'Avg Japa',
+                          value: averageJapaRounds.toStringAsFixed(1),
+                          icon: Icons.spa_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryBox(
+                          label: 'Reading',
+                          value: '$totalReadingMinutes min',
+                          icon: Icons.menu_book_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _SummaryBox(
+                          label: 'Service',
+                          value: '$totalServiceMinutes min',
+                          icon: Icons.volunteer_activism_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (entries.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondaryContainer
+                            .withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Text(
+                        'No Sadhana entries found for the selected date range.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    ...entries.map((entry) {
+                      return _SadhanaEntryTile(
+                        entry: Map<String, dynamic>.from(entry as Map),
+                      );
+                    }),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _SummaryBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _SummaryBox({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            textAlign: TextAlign.center,
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.labelMedium,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SadhanaEntryTile extends StatelessWidget {
+  final Map<String, dynamic> entry;
+
+  const _SadhanaEntryTile({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final entryDate = entry['entryDate']?.toString() ?? '';
+    final japaRounds = (entry['japaRounds'] as num?)?.toInt() ?? 0;
+    final readingMinutes = (entry['readingMinutes'] as num?)?.toInt() ?? 0;
+    final serviceMinutes = (entry['serviceMinutes'] as num?)?.toInt() ?? 0;
+    final sleptAt = entry['sleptAt']?.toString();
+    final wokeUpAt = entry['wokeUpAt']?.toString();
+    final notes = entry['notes']?.toString();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _formatDisplayDate(entryDate),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _Pill(label: 'Japa', value: '$japaRounds rounds'),
+              _Pill(label: 'Reading', value: '$readingMinutes min'),
+              _Pill(label: 'Service', value: '$serviceMinutes min'),
+              _BoolPill(
+                label: 'Mangala Arati',
+                value: entry['mangalaArati'] == true,
+              ),
+              _BoolPill(
+                label: 'Tulasi Puja',
+                value: entry['tulasiPuja'] == true,
+              ),
+              _BoolPill(label: 'Guru Puja', value: entry['guruPuja'] == true),
+              _BoolPill(
+                label: 'Bhagavatam',
+                value: entry['bhagavatamClass'] == true,
+              ),
+            ],
+          ),
+          if ((sleptAt != null && sleptAt.isNotEmpty) ||
+              (wokeUpAt != null && wokeUpAt.isNotEmpty)) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Slept: ${sleptAt ?? '-'} • Woke: ${wokeUpAt ?? '-'}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          if (notes != null && notes.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(notes, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _formatDisplayDate(String value) {
+    if (value.isEmpty) return 'Unknown date';
+
+    try {
+      final date = DateTime.parse(value);
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final year = date.year.toString();
+
+      return '$day/$month/$year';
+    } catch (_) {
+      return value;
+    }
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _Pill({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text('$label: $value'),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+class _BoolPill extends StatelessWidget {
+  final String label;
+  final bool value;
+
+  const _BoolPill({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      label: Text('$label: ${value ? 'Yes' : 'No'}'),
+      visualDensity: VisualDensity.compact,
     );
   }
 }

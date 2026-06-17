@@ -10,6 +10,7 @@ import '../users/user_selector_screen.dart';
 import '../users/user_session_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../users/users_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -362,6 +363,134 @@ Please describe what happened:
       MaterialPageRoute(builder: (_) => const UserSelectorScreen()),
       (route) => false,
     );
+  }
+
+  Future<void> _confirmDeleteAccount(
+    BuildContext context,
+    WidgetRef ref,
+    AppUser user,
+  ) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          contentPadding: const EdgeInsets.fromLTRB(24, 26, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 74,
+                height: 74,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: const Icon(
+                  Icons.delete_forever_rounded,
+                  color: Colors.redAccent,
+                  size: 38,
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Delete account?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: textDark,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'This will permanently delete ${user.fullName}’s account, profile, sadhana history and app access. This action cannot be undone.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: textMuted,
+                  fontSize: 14,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 13,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'Delete Account',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+
+    if (!context.mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+
+    try {
+      await ref.read(usersServiceProvider).deleteMyAccount();
+      await ref.read(selectedUserProvider.notifier).logout();
+
+      if (!context.mounted) return;
+
+      Navigator.of(context, rootNavigator: true).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account deleted successfully.')),
+      );
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const UserSelectorScreen()),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+
+      Navigator.of(context, rootNavigator: true).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not delete account. Please try again or contact support.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _refreshProfileData(WidgetRef ref) async {
@@ -870,6 +999,21 @@ Please describe what happened:
                             iconColor: Colors.redAccent,
                             trailingColor: Colors.redAccent,
                             onTap: () => _confirmLogout(context, ref),
+                          ),
+                          const Divider(height: 18),
+                          _actionTile(
+                            icon: Icons.delete_forever_rounded,
+                            title: 'Delete Account',
+                            subtitle:
+                                'Permanently delete your account and app data',
+                            iconBg: const Color(0xFFFFF1F2),
+                            iconColor: Colors.redAccent,
+                            trailingColor: Colors.redAccent,
+                            onTap: () => _confirmDeleteAccount(
+                              context,
+                              ref,
+                              selectedUser,
+                            ),
                           ),
                         ],
                       ),

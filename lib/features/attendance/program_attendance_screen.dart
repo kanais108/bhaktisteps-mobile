@@ -3,194 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../events/events_provider.dart';
 import '../users/user_session_provider.dart';
 import 'attendance_bulk_provider.dart';
-import 'attendance_provider.dart';
-import 'program_attendance_screen.dart';
 
-class AttendanceScreen extends StatelessWidget {
-  const AttendanceScreen({super.key});
-
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color white = Colors.white;
-  static const Color primary = Color(0xFF2F6FED);
-  static const Color textDark = Color(0xFF1E293B);
-  static const Color textMuted = Color(0xFF64748B);
-  static const Color green = Color(0xFF16A34A);
-  static const Color orange = Color(0xFFF59E0B);
-
-  Widget _optionCard({
-    required BuildContext context,
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.045),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(28),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Icon(icon, color: color, size: 30),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: textDark,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          color: textMuted,
-                          fontSize: 13.5,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: textMuted,
-                  size: 17,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+class ProgramAttendanceScreen extends ConsumerStatefulWidget {
+  const ProgramAttendanceScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: background,
-      appBar: AppBar(
-        title: const Text('Attendance'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: textDark,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFEFF6FF), Color(0xFFDCEAFE)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.info_outline_rounded, color: primary),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Choose the type of attendance you want to record.',
-                    style: TextStyle(
-                      color: textDark,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          _optionCard(
-            context: context,
-            icon: Icons.school_rounded,
-            color: green,
-            title: 'Regular Program Attendance',
-            subtitle:
-                'For Bhakti Steps, weekly sessions, and recurring programs. No need to create a separate Event.',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ProgramAttendanceScreen(),
-                ),
-              );
-            },
-          ),
-          _optionCard(
-            context: context,
-            icon: Icons.event_available_rounded,
-            color: orange,
-            title: 'Event Attendance',
-            subtitle:
-                'For one-time events, festivals, Sunday feast, and special programs.',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const EventAttendanceScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  ConsumerState<ProgramAttendanceScreen> createState() =>
+      _ProgramAttendanceScreenState();
 }
 
-class EventAttendanceScreen extends ConsumerStatefulWidget {
-  const EventAttendanceScreen({super.key});
-
-  @override
-  ConsumerState<EventAttendanceScreen> createState() =>
-      _EventAttendanceScreenState();
-}
-
-class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
-  String? selectedGroupId;
-  String? selectedEventId;
+class _ProgramAttendanceScreenState
+    extends ConsumerState<ProgramAttendanceScreen> {
+  String? selectedBatchId;
+  String? selectedSessionId;
   DateTime selectedDate = DateTime.now();
+
   bool isSubmitting = false;
+  bool isCreatingSession = false;
   String searchQuery = '';
 
   final Map<String, bool> attendanceMap = {};
@@ -209,10 +40,6 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
   static const Color warningSoft = Color(0xFFFFF4E5);
   static const Color danger = Color(0xFFDC2626);
 
-  bool _isSameDate(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
   void _showSnack(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -226,19 +53,20 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
   String _friendlyError(Object error, String fallback) {
     if (error is DioException) {
       final serverMessage = error.response?.data;
+
       if (serverMessage is Map && serverMessage['message'] != null) {
         return serverMessage['message'].toString();
       }
 
       switch (error.response?.statusCode) {
         case 400:
-          return 'Invalid request. Please check the attendance details.';
+          return 'Invalid request. Please check the program session details.';
         case 401:
           return 'Session expired. Please log in again.';
         case 403:
-          return 'You do not have permission to save attendance.';
+          return 'You do not have permission to manage this program.';
         case 404:
-          return 'Attendance resource was not found.';
+          return 'Program attendance resource was not found.';
         case 500:
           return 'Server error while saving attendance. Please try again.';
       }
@@ -263,25 +91,158 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
       initialDate: selectedDate,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      helpText: 'Select Attendance Date',
+      helpText: 'Select Session Date',
     );
 
     if (picked == null) return;
 
     setState(() {
-      selectedDate = picked;
-      selectedEventId = null;
-      attendanceMap.clear();
-      remarksMap.clear();
-      searchQuery = '';
+      selectedDate = DateTime(picked.year, picked.month, picked.day);
     });
+  }
+
+  int _nextWeekNumber(List<dynamic> sessions) {
+    if (sessions.isEmpty) return 1;
+
+    final weekNumbers = sessions
+        .map((session) => (session['weekNumber'] as num?)?.toInt() ?? 0)
+        .where((value) => value > 0)
+        .toList();
+
+    if (weekNumbers.isEmpty) return 1;
+
+    weekNumbers.sort();
+    return weekNumbers.last + 1;
+  }
+
+  Future<void> _createSession(List<dynamic> sessions) async {
+    if (selectedBatchId == null || selectedBatchId!.isEmpty) {
+      _showSnack('Please select a program batch first', isError: true);
+      return;
+    }
+
+    final weekController = TextEditingController(
+      text: _nextWeekNumber(sessions).toString(),
+    );
+
+    final titleController = TextEditingController(
+      text: 'Week ${_nextWeekNumber(sessions)}',
+    );
+
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text('Create Program Session'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Session date: ${DateFormat('dd MMM yyyy').format(selectedDate)}',
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: weekController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Week Number',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Create'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldCreate != true) return;
+
+    final weekNumber = int.tryParse(weekController.text.trim());
+
+    if (weekNumber == null || weekNumber < 1) {
+      _showSnack('Please enter a valid week number', isError: true);
+      return;
+    }
+
+    setState(() => isCreatingSession = true);
+
+    try {
+      final service = ref.read(bulkAttendanceServiceProvider);
+
+      final session = await service.createProgramSession(
+        batchId: selectedBatchId!,
+        weekNumber: weekNumber,
+        sessionDate: selectedDate,
+        title: titleController.text,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        selectedSessionId = session['id']?.toString();
+        attendanceMap.clear();
+        remarksMap.clear();
+      });
+
+      ref.invalidate(programBatchSessionsProvider(selectedBatchId!));
+
+      _showSnack('Program session created.');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnack(
+        _friendlyError(error, 'Unable to create program session.'),
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isCreatingSession = false);
+      }
+    }
+  }
+
+  void _applyExistingAttendance(List<dynamic> records) {
+    for (final record in records) {
+      final user = record['user'];
+
+      final userId = user is Map
+          ? user['id']?.toString()
+          : record['userId']?.toString();
+
+      if (userId == null || userId.isEmpty) continue;
+
+      attendanceMap[userId] = record['status'] == 'present';
+      remarksMap[userId] = record['remarks']?.toString() ?? '';
+    }
   }
 
   void markAllPresent(List<dynamic> members) {
     setState(() {
       for (final member in members) {
-        final userId = member.userId as String;
-        attendanceMap[userId] = true;
+        final userId = member['userId']?.toString() ?? '';
+        if (userId.isNotEmpty) {
+          attendanceMap[userId] = true;
+        }
       }
     });
   }
@@ -289,15 +250,17 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
   void markAllAbsent(List<dynamic> members) {
     setState(() {
       for (final member in members) {
-        final userId = member.userId as String;
-        attendanceMap[userId] = false;
+        final userId = member['userId']?.toString() ?? '';
+        if (userId.isNotEmpty) {
+          attendanceMap[userId] = false;
+        }
       }
     });
   }
 
   int _presentCount(List<dynamic> members) {
     return members.where((member) {
-      final userId = member.userId as String;
+      final userId = member['userId']?.toString() ?? '';
       return attendanceMap[userId] ?? true;
     }).length;
   }
@@ -306,7 +269,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
     return members.length - _presentCount(members);
   }
 
-  Future<void> submitBulkAttendance() async {
+  Future<void> submitProgramAttendance(List<dynamic> members) async {
     final selectedUser = ref.read(selectedUserProvider);
 
     if (selectedUser == null) {
@@ -319,32 +282,29 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
       return;
     }
 
-    if (selectedGroupId == null || selectedGroupId!.isEmpty) {
-      _showSnack('Please select a group', isError: true);
+    if (selectedBatchId == null || selectedBatchId!.isEmpty) {
+      _showSnack('Please select a program batch', isError: true);
       return;
     }
 
-    if (selectedEventId == null || selectedEventId!.isEmpty) {
-      _showSnack('Please select an event', isError: true);
+    if (selectedSessionId == null || selectedSessionId!.isEmpty) {
+      _showSnack('Please select or create a session', isError: true);
       return;
     }
-
-    final members = await ref.read(
-      groupMembersProvider(selectedGroupId!).future,
-    );
 
     if (members.isEmpty) {
-      _showSnack('No members found for this group', isError: true);
+      _showSnack('No members found for this program batch', isError: true);
       return;
     }
 
     setState(() => isSubmitting = true);
 
     try {
-      final attendanceService = ref.read(bulkAttendanceServiceProvider);
+      final service = ref.read(bulkAttendanceServiceProvider);
 
       final records = members.map((member) {
-        final userId = member.userId as String;
+        final userId = member['userId']?.toString() ?? '';
+
         return {
           'userId': userId,
           'status': (attendanceMap[userId] ?? true) ? 'present' : 'absent',
@@ -354,23 +314,21 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
         };
       }).toList();
 
-      await attendanceService.bulkCreateOrUpdateAttendance({
-        'eventId': selectedEventId,
-        'records': records,
-      });
-
-      ref.invalidate(attendanceProvider);
-      ref.invalidate(eventsProvider);
-
-      if (!mounted) return;
-
-      _showSnack(
-        'Attendance saved for ${DateFormat('dd MMM yyyy').format(selectedDate)}',
+      await service.bulkCreateOrUpdateProgramAttendance(
+        sessionId: selectedSessionId!,
+        records: records,
       );
-    } catch (e) {
+
+      ref.invalidate(programSessionAttendanceProvider(selectedSessionId!));
+
       if (!mounted) return;
+
+      _showSnack('Program attendance saved successfully.');
+    } catch (error) {
+      if (!mounted) return;
+
       _showSnack(
-        _friendlyError(e, 'Failed to save attendance. Please try again.'),
+        _friendlyError(error, 'Failed to save program attendance.'),
         isError: true,
       );
     } finally {
@@ -434,77 +392,6 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
     );
   }
 
-  Widget _accessDeniedView() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: _sectionCard(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: primarySoft,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 38,
-                  color: primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Attendance Access Restricted',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: textDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Attendance can only be recorded by authorized leaders in your hierarchy.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: textMuted, height: 1.4),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _infoBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEFF6FF), Color(0xFFDCEAFE)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline_rounded, color: primary),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'You can record attendance only for programs and members available within your assigned hierarchy.',
-              style: TextStyle(color: textDark, fontSize: 13, height: 1.4),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _summaryChip({
     required String label,
     required String value,
@@ -544,8 +431,8 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
   }
 
   Widget _memberTile(dynamic member) {
-    final userId = member.userId as String;
-    final fullName = member.fullName as String;
+    final userId = member['userId']?.toString() ?? '';
+    final fullName = member['fullName']?.toString() ?? 'Unknown devotee';
 
     attendanceMap.putIfAbsent(userId, () => true);
     remarksMap.putIfAbsent(userId, () => '');
@@ -658,7 +545,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
               ],
             ),
             TextFormField(
-              key: ValueKey('remarks_$userId'),
+              key: ValueKey('program_remarks_$userId'),
               initialValue: remarksMap[userId] ?? '',
               decoration: InputDecoration(
                 labelText: 'Remarks',
@@ -681,7 +568,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
   }
 
   Widget _bottomSaveBar(List<dynamic>? members) {
-    final hasSelection = selectedGroupId != null && selectedEventId != null;
+    final hasSelection = selectedBatchId != null && selectedSessionId != null;
     final total = members?.length ?? 0;
     final present = members == null ? 0 : _presentCount(members);
     final absent = members == null ? 0 : _absentCount(members);
@@ -726,9 +613,9 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: isSubmitting || !hasSelection
+                onPressed: isSubmitting || !hasSelection || members == null
                     ? null
-                    : submitBulkAttendance,
+                    : () => submitProgramAttendance(members),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
                   foregroundColor: white,
@@ -749,7 +636,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
                         ),
                       )
                     : const Text(
-                        'Save Attendance',
+                        'Save Program Attendance',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -770,7 +657,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
     if (selectedUser == null) {
       return Scaffold(
         backgroundColor: background,
-        appBar: AppBar(title: const Text('Attendance')),
+        appBar: AppBar(title: const Text('Program Attendance')),
         body: const Center(child: Text('Please log in first')),
       );
     }
@@ -778,48 +665,93 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
     if (!selectedUser.isLeader) {
       return Scaffold(
         backgroundColor: background,
-        appBar: AppBar(title: const Text('Attendance')),
-        body: _accessDeniedView(),
+        appBar: AppBar(title: const Text('Program Attendance')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Program attendance can only be recorded by authorized leaders.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
       );
     }
 
-    final groupsAsync = ref.watch(scopedGroupsProvider);
-    final eventsAsync = ref.watch(eventsProvider);
-    final membersAsync = selectedGroupId == null
+    final batchesAsync = ref.watch(programBatchesProvider);
+    final sessionsAsync = selectedBatchId == null
         ? null
-        : ref.watch(groupMembersProvider(selectedGroupId!));
+        : ref.watch(programBatchSessionsProvider(selectedBatchId!));
+    final membersAsync = selectedBatchId == null
+        ? null
+        : ref.watch(programBatchMembersProvider(selectedBatchId!));
+    final attendanceAsync = selectedSessionId == null
+        ? null
+        : ref.watch(programSessionAttendanceProvider(selectedSessionId!));
+
+    attendanceAsync?.whenData((records) {
+      _applyExistingAttendance(records);
+    });
 
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
-        title: const Text('Attendance'),
+        title: const Text('Program Attendance'),
         backgroundColor: Colors.transparent,
         foregroundColor: textDark,
         elevation: 0,
         centerTitle: true,
       ),
-      body: groupsAsync.when(
+      body: batchesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _emptyState(
           icon: Icons.error_outline_rounded,
-          title: 'Unable to load groups',
+          title: 'Unable to load programs',
           subtitle: 'Please check your connection and try again.',
         ),
-        data: (groups) {
+        data: (batches) {
           return Column(
             children: [
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   children: [
-                    _infoBanner(),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFEFF6FF), Color(0xFFDCEAFE)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: primary),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Use this for regular programs like Bhakti Steps. You do not need to create a separate Event every week.',
+                              style: TextStyle(
+                                color: textDark,
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     _sectionCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Attendance Setup',
+                            'Program Setup',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
@@ -828,10 +760,49 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Choose the date, group, and event for which attendance is being recorded.',
+                            'Choose a program batch and create or select a weekly session.',
                             style: TextStyle(fontSize: 13, color: textMuted),
                           ),
                           const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            value: selectedBatchId,
+                            decoration: InputDecoration(
+                              labelText: 'Select Program Batch',
+                              filled: true,
+                              fillColor: const Color(0xFFF8FAFF),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            items: batches.map<DropdownMenuItem<String>>((
+                              batch,
+                            ) {
+                              final program = batch['program'];
+                              final programName = program is Map
+                                  ? program['name']?.toString() ?? 'Program'
+                                  : 'Program';
+
+                              final batchName =
+                                  batch['name']?.toString() ?? 'Batch';
+
+                              return DropdownMenuItem<String>(
+                                value: batch['id']?.toString(),
+                                child: Text('$programName - $batchName'),
+                              );
+                            }).toList(),
+                            onChanged: batches.isEmpty
+                                ? null
+                                : (value) {
+                                    setState(() {
+                                      selectedBatchId = value;
+                                      selectedSessionId = null;
+                                      attendanceMap.clear();
+                                      remarksMap.clear();
+                                      searchQuery = '';
+                                    });
+                                  },
+                          ),
+                          const SizedBox(height: 14),
                           InkWell(
                             borderRadius: BorderRadius.circular(16),
                             onTap: _pickAttendanceDate,
@@ -861,7 +832,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         const Text(
-                                          'Attendance Date',
+                                          'Session Date',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: textMuted,
@@ -890,118 +861,113 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          DropdownButtonFormField<String>(
-                            value: selectedGroupId,
-                            decoration: InputDecoration(
-                              labelText: 'Select Group',
-                              filled: true,
-                              fillColor: const Color(0xFFF8FAFF),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            items: groups
-                                .map<DropdownMenuItem<String>>(
-                                  (g) => DropdownMenuItem<String>(
-                                    value: g.id as String,
-                                    child: Text(g.name as String),
+                          sessionsAsync == null
+                              ? const SizedBox.shrink()
+                              : sessionsAsync.when(
+                                  loading: () => const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8),
+                                      child: CircularProgressIndicator(),
+                                    ),
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                selectedGroupId = value;
-                                selectedEventId = null;
-                                attendanceMap.clear();
-                                remarksMap.clear();
-                                searchQuery = '';
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 14),
-                          eventsAsync.when(
-                            loading: () => const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 8),
-                              child: Center(child: CircularProgressIndicator()),
-                            ),
-                            error: (error, _) => const Text(
-                              'Unable to load events',
-                              style: TextStyle(color: danger),
-                            ),
-                            data: (events) {
-                              final filteredEvents = events.where((e) {
-                                return _isSameDate(
-                                  e.startsAt.toLocal(),
-                                  selectedDate,
-                                );
-                              }).toList();
+                                  error: (error, _) => const Text(
+                                    'Unable to load sessions',
+                                    style: TextStyle(color: danger),
+                                  ),
+                                  data: (sessions) {
+                                    return Column(
+                                      children: [
+                                        DropdownButtonFormField<String>(
+                                          value: selectedSessionId,
+                                          decoration: InputDecoration(
+                                            labelText: 'Select Session',
+                                            filled: true,
+                                            fillColor: const Color(0xFFF8FAFF),
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          items: sessions
+                                              .map<DropdownMenuItem<String>>((
+                                                session,
+                                              ) {
+                                                final week =
+                                                    (session['weekNumber']
+                                                            as num?)
+                                                        ?.toInt();
 
-                              return DropdownButtonFormField<String>(
-                                value: selectedEventId,
-                                decoration: InputDecoration(
-                                  labelText: 'Select Event',
-                                  filled: true,
-                                  fillColor: const Color(0xFFF8FAFF),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
+                                                final title =
+                                                    session['title']
+                                                        ?.toString() ??
+                                                    'Week $week';
+
+                                                final sessionDate =
+                                                    session['sessionDate']
+                                                        ?.toString()
+                                                        .split('T')
+                                                        .first ??
+                                                    '';
+
+                                                return DropdownMenuItem<String>(
+                                                  value: session['id']
+                                                      ?.toString(),
+                                                  child: Text(
+                                                    '$title • $sessionDate',
+                                                  ),
+                                                );
+                                              })
+                                              .toList(),
+                                          onChanged: sessions.isEmpty
+                                              ? null
+                                              : (value) {
+                                                  setState(() {
+                                                    selectedSessionId = value;
+                                                    attendanceMap.clear();
+                                                    remarksMap.clear();
+                                                  });
+                                                },
+                                        ),
+                                        const SizedBox(height: 10),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: OutlinedButton.icon(
+                                            onPressed: isCreatingSession
+                                                ? null
+                                                : () =>
+                                                      _createSession(sessions),
+                                            icon: isCreatingSession
+                                                ? const SizedBox(
+                                                    width: 18,
+                                                    height: 18,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  )
+                                                : const Icon(Icons.add),
+                                            label: Text(
+                                              isCreatingSession
+                                                  ? 'Creating...'
+                                                  : 'Create New Weekly Session',
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
-                                items: filteredEvents
-                                    .map(
-                                      (e) => DropdownMenuItem<String>(
-                                        value: e.id,
-                                        child: Text(e.title),
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: filteredEvents.isEmpty
-                                    ? null
-                                    : (value) {
-                                        setState(() {
-                                          selectedEventId = value;
-                                        });
-                                      },
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          eventsAsync.maybeWhen(
-                            data: (events) {
-                              final filteredEvents = events.where((e) {
-                                return _isSameDate(
-                                  e.startsAt.toLocal(),
-                                  selectedDate,
-                                );
-                              }).toList();
-
-                              if (filteredEvents.isNotEmpty) {
-                                return const SizedBox.shrink();
-                              }
-
-                              return const Padding(
-                                padding: EdgeInsets.only(top: 2),
-                                child: Text(
-                                  'No events found for the selected date.',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: textMuted,
-                                  ),
-                                ),
-                              );
-                            },
-                            orElse: () => const SizedBox.shrink(),
-                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
                     _sectionCard(
-                      child: selectedGroupId == null
+                      child: selectedBatchId == null
                           ? _emptyState(
-                              icon: Icons.groups_rounded,
-                              title: 'Select a group',
+                              icon: Icons.school_outlined,
+                              title: 'Select a program batch',
                               subtitle:
-                                  'Members will appear here after selecting a group.',
+                                  'Members will appear after selecting a batch.',
                             )
                           : membersAsync!.when(
                               loading: () => const Padding(
@@ -1017,10 +983,11 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
                                     'Please try again after checking your connection.',
                               ),
                               data: (membersRaw) {
-                                final allMembers = membersRaw as List<dynamic>;
+                                final allMembers = membersRaw;
                                 final members = allMembers.where((m) {
-                                  final name = (m.fullName as String)
-                                      .toLowerCase();
+                                  final name =
+                                      m['fullName']?.toString().toLowerCase() ??
+                                      '';
                                   return name.contains(searchQuery);
                                 }).toList();
 
@@ -1029,7 +996,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
                                     icon: Icons.person_off_rounded,
                                     title: 'No members found',
                                     subtitle:
-                                        'This group does not have members yet.',
+                                        'This program batch does not have members yet.',
                                   );
                                 }
 
@@ -1040,7 +1007,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
                                       children: [
                                         const Expanded(
                                           child: Text(
-                                            'Members',
+                                            'Program Members',
                                             style: TextStyle(
                                               fontSize: 18,
                                               fontWeight: FontWeight.w800,
@@ -1126,8 +1093,7 @@ class _EventAttendanceScreenState extends ConsumerState<EventAttendanceScreen> {
               membersAsync == null
                   ? _bottomSaveBar(null)
                   : membersAsync.maybeWhen(
-                      data: (members) =>
-                          _bottomSaveBar(members as List<dynamic>),
+                      data: (members) => _bottomSaveBar(members),
                       orElse: () => _bottomSaveBar(null),
                     ),
             ],

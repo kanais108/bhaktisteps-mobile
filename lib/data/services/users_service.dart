@@ -66,4 +66,8 @@ class UsersService {
 
     return [];
   }
+
+  Future<void> deleteMyAccount() async {
+    await apiService.dio.delete('/users/me');
+  }
 }

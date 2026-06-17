@@ -43,3 +43,44 @@ final groupMembersProvider = FutureProvider.family<List<dynamic>, String>((
   final service = ref.read(groupMembersServiceProvider);
   return service.getMembers(groupId);
 });
+
+final programBatchesProvider = FutureProvider<List<dynamic>>((ref) async {
+  final selectedUser = ref.watch(selectedUserProvider);
+
+  if (selectedUser == null) {
+    return [];
+  }
+
+  final service = ref.read(bulkAttendanceServiceProvider);
+  return service.getProgramBatches();
+});
+
+final programBatchMembersProvider =
+    FutureProvider.family<List<dynamic>, String>((ref, batchId) async {
+      if (batchId.isEmpty) {
+        return [];
+      }
+
+      final service = ref.read(bulkAttendanceServiceProvider);
+      return service.getProgramBatchMembers(batchId);
+    });
+
+final programBatchSessionsProvider =
+    FutureProvider.family<List<dynamic>, String>((ref, batchId) async {
+      if (batchId.isEmpty) {
+        return [];
+      }
+
+      final service = ref.read(bulkAttendanceServiceProvider);
+      return service.getProgramBatchSessions(batchId);
+    });
+
+final programSessionAttendanceProvider =
+    FutureProvider.family<List<dynamic>, String>((ref, sessionId) async {
+      if (sessionId.isEmpty) {
+        return [];
+      }
+
+      final service = ref.read(bulkAttendanceServiceProvider);
+      return service.getProgramSessionAttendance(sessionId);
+    });

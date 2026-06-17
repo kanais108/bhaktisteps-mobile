@@ -281,6 +281,25 @@ class SadhanaService {
     );
   }
 
+  Future<Map<String, dynamic>> getMemberSadhanaHistory({
+    required String facilitatorUserId,
+    required String memberUserId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    final Response response = await apiService.dio.get(
+      '/sadhana/members/history',
+      queryParameters: {
+        'facilitatorUserId': facilitatorUserId,
+        'memberUserId': memberUserId,
+        'fromDate': _formatDate(fromDate),
+        'toDate': _formatDate(toDate),
+      },
+    );
+
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
   String _formatDate(DateTime date) {
     final year = date.year.toString().padLeft(4, '0');
     final month = date.month.toString().padLeft(2, '0');
